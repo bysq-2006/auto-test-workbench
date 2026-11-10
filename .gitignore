@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+secrets/
+**/*password*
+**/*token*
+**/*.pem
+runs/**/private/
