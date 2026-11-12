@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>多智能体测试工作台</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>多智能体测试工作台</h1>
+      <p class="muted" id="clock">加载中…</p>
+    </header>
+    <section class="cards" id="cards"></section>
+    <section class="panel">
+      <h2>任务状态</h2>
+      <canvas id="chart" height="110"></canvas>
+    </section>
+    <section class="panel">
+      <h2>技能</h2>
+      <ul id="skills"></ul>
+    </section>
+    <section class="grid">
+      <div class="panel">
+        <h2>任务队列</h2>
+        <div id="tasks"></div>
+      </div>
+      <div class="panel">
+        <h2>测试结果</h2>
+        <div id="results"></div>
+      </div>
+    </section>
+    <section class="grid">
+      <div class="panel">
+        <h2>资源占用</h2>
+        <ul id="claims"></ul>
+      </div>
+      <div class="panel">
+        <h2>消息</h2>
+        <ul id="messages"></ul>
+      </div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
