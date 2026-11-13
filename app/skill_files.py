@@ -15,19 +15,27 @@ def _docstring(source: str) -> str:
 
 
 def _skill_meta(source: str) -> dict | None:
-    """如果文件里写了 SKILL = {...}，取出 name / description。"""
+    """如果文件里写了 SKILL = {...} 或 SKILL: dict = {...}，取出 name / description。"""
     try:
         tree = ast.parse(source)
     except SyntaxError:
         return None
     for node in tree.body:
-        if not isinstance(node, ast.Assign):
+        if isinstance(node, ast.Assign):
+            names = [target.id for target in node.targets if isinstance(target, ast.Name)]
+            value_node = node.value
+        elif isinstance(node, ast.AnnAssign):
+            # 带类型注解的赋值是 AnnAssign，不是 Assign；只有注解没赋值时 value 是 None
+            if node.value is None:
+                continue
+            names = [node.target.id] if isinstance(node.target, ast.Name) else []
+            value_node = node.value
+        else:
             continue
-        names = [target.id for target in node.targets if isinstance(target, ast.Name)]
         if "SKILL" not in names:
             continue
         try:
-            value = ast.literal_eval(node.value)
+            value = ast.literal_eval(value_node)
         except (ValueError, TypeError):
             return None
         if isinstance(value, dict):

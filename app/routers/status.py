@@ -35,6 +35,12 @@ def api_status(conn: sqlite3.Connection = Depends(get_conn)):
         FROM test_results WHERE kind = 'note'
         """
     ).fetchone()
+    # 浏览器资源：空闲、被占用、已关闭各多少台
+    browsers = _counts(
+        conn,
+        "SELECT status AS k, COUNT(*) AS n FROM browsers GROUP BY status",
+        ("idle", "occupied", "closed"),
+    )
     return {
         "tasks": tasks,
         "results": results,
@@ -42,4 +48,5 @@ def api_status(conn: sqlite3.Connection = Depends(get_conn)):
             "total": int(notes["total"] or 0),
             "pending": int(notes["pending"] or 0),
         },
+        "browsers": browsers,
     }

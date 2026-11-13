@@ -11,15 +11,17 @@ const STATUS_LABEL = {
   failed: "失败",
 };
 
-export function taskRows(items, limit) {
+/** compact=true 时不显示「描述」列，给仪表盘这种窄位置用。 */
+export function taskRows(items, limit, compact = false) {
   const rows = items.slice(0, limit || items.length);
   if (!rows.length) return empty("暂无任务");
+  const descHead = compact ? "" : "<th>描述</th>";
   return `<table>
-    <thead><tr><th>编号</th><th>标题</th><th>描述</th><th>状态</th><th>负责人</th><th>时间</th></tr></thead>
+    <thead><tr><th>编号</th><th>标题</th>${descHead}<th>状态</th><th>负责人</th><th>时间</th></tr></thead>
     <tbody>${rows.map((item) => `<tr>
       <td>${esc(item.id)}</td>
       ${clipCell("tasks", item.id, "title", item.title)}
-      ${clipCell("tasks", item.id, "description", item.description)}
+      ${compact ? "" : clipCell("tasks", item.id, "description", item.description)}
       <td><span class="tag ${esc(item.status)}">${esc(STATUS_LABEL[item.status] || item.status || "—")}</span></td>
       <td>${esc(item.assignee || item.agent_name || "—")}</td>
       ${timeCell(item.updated_at || item.created_at)}
