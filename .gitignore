@@ -2,3 +2,7 @@
 __pycache__/
 *.py[cod]
 data/
+skills/
+runs/
+projects/
+start.bat

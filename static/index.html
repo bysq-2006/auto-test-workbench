@@ -4,45 +4,60 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>多智能体测试工作台</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=36">
 </head>
 <body>
-  <main>
-    <header>
-      <h1>多智能体测试工作台</h1>
-      <p class="muted" id="clock">加载中…</p>
-    </header>
-    <section class="cards" id="cards"></section>
-    <section class="panel">
-      <h2>任务状态</h2>
-      <canvas id="chart" height="110"></canvas>
-    </section>
-    <section class="panel">
-      <h2>技能</h2>
-      <ul id="skills"></ul>
-    </section>
-    <section class="grid">
-      <div class="panel">
-        <h2>任务队列</h2>
-        <div id="tasks"></div>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i>
+        </span>
+        <span class="brand-name">工作台</span>
       </div>
-      <div class="panel">
-        <h2>测试结果</h2>
-        <div id="results"></div>
-      </div>
-    </section>
-    <section class="grid">
-      <div class="panel">
-        <h2>资源占用</h2>
-        <ul id="claims"></ul>
-      </div>
-      <div class="panel">
-        <h2>消息</h2>
-        <ul id="messages"></ul>
-      </div>
-    </section>
-  </main>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-  <script src="/static/app.js"></script>
+      <nav id="nav">
+        <a href="#/dashboard" data-page="dashboard">
+          <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg>
+          仪表盘
+        </a>
+        <a href="#/skills" data-page="skills">
+          <svg viewBox="0 0 24 24"><path d="M8 4h8l1 4H7l1-4zm-1 4 3 12h4l3-12"/></svg>
+          技能
+        </a>
+        <a href="#/tasks" data-page="tasks">
+          <svg viewBox="0 0 24 24"><path d="M8 4h8v3H8zM6 8h12v12H6zM9 12h6M9 16h4"/></svg>
+          任务
+        </a>
+        <a href="#/results" data-page="results">
+          <svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h4"/></svg>
+          结果
+        </a>
+        <a href="#/browsers" data-page="browsers">
+          <svg viewBox="0 0 24 24"><path d="M4 5h16v12H4z"/><path d="M8 19h8"/><path d="M7 8h10v6H7z"/></svg>
+          资源
+        </a>
+        <a href="#/messages" data-page="messages">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16v10H7l-3 3z"/></svg>
+          消息
+        </a>
+        <a href="#/docs" data-page="docs">
+          <svg viewBox="0 0 24 24"><path d="M5 4h8.5L19 9.5V20H5z"/><path d="M13.5 4v5.5H19"/><path d="M8 13h8M8 17h6"/></svg>
+          使用说明
+        </a>
+      </nav>
+    </aside>
+    <div class="content">
+      <header class="topbar">
+        <span class="crumb">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg>
+          <span id="crumb">仪表盘</span>
+        </span>
+        <span class="muted" id="clock"></span>
+      </header>
+      <div id="page"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/main.js?v=36"></script>
 </body>
 </html>

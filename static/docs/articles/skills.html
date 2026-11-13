@@ -1,0 +1,32 @@
+    <h1>技能</h1>
+    <p>技能不进数据库。每次调用接口都会扫描 <code>skills/*.py</code>（以下划线开头的文件会跳过），只读文件内容，不会执行脚本。改技能就是在这个目录里增删或改脚本。</p>
+    <p>介绍写在文件内部，按下面的顺序读取：</p>
+    <ul>
+      <li>如果写了 <code>SKILL = {"name": "...", "description": "..."}</code>，优先用这里的名字和介绍。</li>
+      <li>否则，技能名用文件名（不含 <code>.py</code>），介绍用文件开头的模块文档字符串。</li>
+    </ul>
+    <h2>作为参数引用技能</h2>
+    <p>任务和结果都不存技能 id，只记 <code>skill_path</code> 文本。创建任务或回写结果时，<code>skill</code> 参数可以写下面任意一种，服务端都能解析到同一个脚本：</p>
+    <ul>
+      <li>相对路径：<code>skills/echo_check.py</code></li>
+      <li>带后缀的文件名：<code>echo_check.py</code></li>
+      <li>不带后缀的名字：<code>echo_check</code></li>
+      <li><code>SKILL</code> 里写的 <code>name</code></li>
+    </ul>
+    <p>解析不到就返回 400。脚本被删掉后，历史记录里的 <code>skill_path</code> 仍然保留，返回里补的 <code>skill_name</code> 会退回用路径里的文件名。</p>
+    <h2>返回字段</h2>
+    <table>
+      <thead><tr><th>真实名</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr><td><code>name</code></td><td>技能名，来自 <code>SKILL</code> 或文件名。</td></tr>
+        <tr><td><code>description</code></td><td>介绍，来自 <code>SKILL</code> 或模块文档字符串。</td></tr>
+        <tr><td><code>path</code></td><td>相对路径，比如 <code>skills/echo_check.py</code>。</td></tr>
+      </tbody>
+    </table>
+    <h2>后端 API</h2>
+    <section class="api">
+      <h3><code>GET /skills</code>：列出当前技能</h3>
+      <p><b>接收</b>：查询参数 <code>q</code>（可选，按名称、路径、介绍包含匹配）、<code>limit</code>（默认 10，最大 200）、<code>page</code>（默认 1）。</p>
+      <p><b>返回</b>：对象 <code>{items, total, page, limit}</code>。<code>items</code> 里每项包含 <code>name</code>、<code>description</code>、<code>path</code>。没有写入接口。</p>
+    </section>
+  

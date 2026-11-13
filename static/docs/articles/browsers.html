@@ -1,0 +1,59 @@
+    <h1>资源</h1>
+    <p>对应数据表 <code>browsers</code>。用来管理工作台自己启动的浏览器：每个实例独立端口、独立用户数据目录。列表可按状态筛选，也可按端口或使用者搜索。页面以小电脑卡片展示，横排两个，屏幕会按设定间隔抓取对应画面（默认 1 秒）。页面可以启动和关闭；关闭后的卡片可以开机（同一端口重新通电）或删除，用来清掉列表里不再需要的记录。占用和释放主要给接口用。</p>
+    <h2>字段</h2>
+    <table>
+      <thead><tr><th>真实名</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>主键，自增。</td></tr>
+        <tr><td><code>port</code></td><td>远程调试端口，由服务端从 9330 起分配，不能自己传。永远不会是 9229。</td></tr>
+        <tr><td><code>status</code></td><td><code>idle</code>（空闲）、<code>occupied</code>（占用）或 <code>closed</code>（已关闭）。<code>closed</code> 是终态。</td></tr>
+        <tr><td><code>agent_name</code></td><td>当前使用者。空闲和未占用时可空；占用时必填。</td></tr>
+        <tr><td><code>pid</code></td><td>工作台启动时记下的进程号。关闭时只结束这一个 PID。</td></tr>
+        <tr><td><code>user_data_dir</code></td><td>该实例的用户数据目录，绝对路径，位于 <code>runs/browsers/</code> 下，每个实例一份。</td></tr>
+        <tr><td><code>created_at</code></td><td>创建时间，UTC。</td></tr>
+        <tr><td><code>updated_at</code></td><td>最近一次状态变更时间，UTC。</td></tr>
+      </tbody>
+    </table>
+    <h2>隔离规则</h2>
+    <p>每个代理的浏览器互相隔离：独立的 <code>--remote-debugging-port</code>，加上独立的 <code>--user-data-dir</code>，不要用用户默认 Chrome 配置，也不要多个实例共享目录。工作台只管理自己启动的实例。不要去连、附加或操作不是本工作台启动的浏览器。不要探测、连接或结束 9229 上的进程，也不要动用户自己的 Chrome。</p>
+    <h2>后端 API</h2>
+    <section class="api">
+      <h3><code>GET /browsers</code>：查看资源</h3>
+      <p><b>接收</b>：查询参数 <code>status</code>（可选，<code>idle</code> / <code>occupied</code> / <code>closed</code>）、<code>q</code>（可选，按端口或使用者包含匹配）、<code>limit</code>（默认 10，最大 200）、<code>page</code>（默认 1）。</p>
+      <p><b>返回</b>：对象 <code>{items, total, page, limit}</code>。</p>
+    </section>
+    <section class="api">
+      <h3><code>POST /browsers</code>：启动浏览器</h3>
+      <p><b>接收</b>：JSON 对象，可以为空。不要传 <code>port</code>，传了返回 400。端口由服务端从 9330 向上找空闲端口（库里没有未关闭记录，且本机当前能绑上），然后启动可见窗口的 Chrome/Chromium。</p>
+      <p><b>返回</b>：新建的资源记录，<code>status</code> 为 <code>idle</code>，<code>agent_name</code> 为空，带 <code>id</code>、<code>port</code>、<code>pid</code>、<code>user_data_dir</code> 等。启动失败不会留下一条假装可用的 idle 记录，返回明确错误。</p>
+    </section>
+    <section class="api">
+      <h3><code>GET /browsers/{id}/screenshot</code>：抓取当前画面</h3>
+      <p><b>接收</b>：路径里的资源 <code>id</code>。只连接该记录自己的调试端口，不会去连 9229 或用户自己的 Chrome。</p>
+      <p><b>返回</b>：当前页面的 JPEG 图片，不缓存。找不到 id 返回 404。已经关闭的返回 400。调试端口连不上或没有可抓的页面返回 502。</p>
+    </section>
+    <section class="api">
+      <h3><code>POST /browsers/{id}/status</code>：占用、释放或关闭</h3>
+      <p><b>接收</b>：JSON，<code>status</code>（必填，<code>idle</code> / <code>occupied</code> / <code>closed</code>）、<code>agent_name</code>（占用时必填且非空）。</p>
+      <ul>
+        <li><code>idle</code>：释放。清空 <code>agent_name</code>，进程保持运行。</li>
+        <li><code>occupied</code>：占用。已被其他代理占用时返回 409，不要抢。同一代理重复占用可以成功。</li>
+        <li><code>closed</code>：只结束这一条记录对应的、由工作台启动的那个进程，然后把该行标成 <code>closed</code>。进程已经不在了仍标关闭，不因此 500。关闭后端口可以被下一次 <code>POST /browsers</code> 再用。</li>
+      </ul>
+      <p><b>返回</b>：更新后的资源记录。找不到 id 返回 404。已经是 <code>closed</code> 的再改状态返回 400。</p>
+    </section>
+    <section class="api">
+      <h3><code>POST /browsers/{id}/power-on</code>：给已关闭的记录开机</h3>
+      <p><b>用途</b>：卡片已关闭后，右下角会出现「开机」按钮，点一下就是调这个接口——把这台「电脑」重新通电，而不是新建一台。</p>
+      <p><b>接收</b>：无请求体。</p>
+      <p><b>行为</b>：沿用原记录的 <code>port</code> 和 <code>user_data_dir</code> 重新拉起浏览器，成功后该行回到 <code>idle</code>、<code>agent_name</code> 清空、<code>pid</code> 更新为新进程。端口已被别的进程占掉就返回 409，不会自行换端口——换了就是另一台机器，记录会对不上。</p>
+      <p><b>返回</b>：更新后的资源记录。找不到 id 返回 404，未关闭的返回 400，启动失败返回 500。</p>
+      <p><b>注意</b>：关闭时会把该实例的 <code>user_data_dir</code> 一起清掉，所以开机拿到的是同一个目录路径、但是空配置——登录态不会自动回来。要保留登录态，就得在关闭时不清目录。</p>
+    </section>
+    <section class="api">
+      <h3><code>DELETE /browsers/{id}</code>：删除已关闭的记录</h3>
+      <p><b>用途</b>：清掉列表里不再需要的记录。卡片已关闭后，右下角会出现「删除」按钮，点一下就是调这个接口。</p>
+      <p><b>接收</b>：无请求体。</p>
+      <p><b>行为</b>：只删除库里的这一行，不结束任何进程——真要结束进程是 <code>closed</code> 做的事。所以只有 <code>closed</code> 的记录能删；未关闭的返回 400，并提示先关闭。删除时会顺手清掉该实例残留的 <code>user_data_dir</code>（如果还在）。</p>
+      <p><b>返回</b>：<code>{"id": 3, "deleted": true}</code>。找不到 id 返回 404。</p>
+    </section>

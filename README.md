@@ -1,58 +1,18 @@
 # 多智能体测试工作台
 
-本地小服务，给主代理和子代理共用。内容包括技能说明、待办队列、测试结果，以及代理之间的消息和资源占用。数据在 SQLite 文件 `data/workbench.db`，没有登录鉴权，只适合本机使用。
+这是一套结合 agent 团队的测试框架。平台本身先是空白的；对着具体项目用起来之后，技能脚本、测试结果和协作记录会慢慢长起来，对这个平台也会越来越熟。
 
-## 安装和运行
+血肉主要分三块，放在仓库根目录：
 
-需要 Python 3.10 或更高版本。如果系统里的 `python` 还是 3.7，用已安装的 3.10 解释器创建虚拟环境。本机可以用 `C:\Users\19045\anaconda3\envs\teacher\python.exe`。
+- **技能 `skills/`**：可复用的脚本。每次请求现场扫描，介绍写在脚本内部，不入库，也不进 git。
+- **数据 `data/`**：本地 SQLite（`workbench.db`），存任务、测试结果和消息。不进 git。
+- **临时跑次 `runs/`**：每一轮测试给各 AI 的临时文件夹，用完可删，不进 git。
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
+本机给主 AI 和从 AI 共用，没有登录鉴权，只监听 `127.0.0.1:8000`。用项目根目录的 `start.bat` 启动，它会走本机已有的 conda 环境 `teacher`。浏览器打开 http://127.0.0.1:8000 即可。给 AI 看的约定在 `AGENTS.md`，给人看的说明在前端「使用说明」页；接口形状也可看 http://127.0.0.1:8000/openapi.json。
 
-浏览器打开 http://127.0.0.1:8000 。页面每 3 秒刷新任务数量，并用 Chart.js（CDN）画一张状态柱状图。
+## 其他模块
 
-启动时会扫描 `skills/*.py`，把文件名、顶部说明和相对路径写入 `skills` 表。
+- **后端 `app/`**：按功能拆开的 FastAPI 服务。负责技能扫描、任务队列、测试结果，以及公共聊天厅。
+- **前端 `static/`**：工作台页面（技能、测试结果、消息）和静态「使用说明」。说明按测试、沟通分组。
+- **约定 `AGENTS.md`**：前后端怎么用、创建子代理与多 Agent 协作、脚本编写规范。脚本编写规范里要求每个脚本都能传入端口号。
 
-## 接口
-
-| 方法 | 路径 | 作用 |
-| --- | --- | --- |
-| GET | `/skills` | 列出技能和脚本路径 |
-| GET | `/tasks?status=pending` | 任务列表，可按状态过滤 |
-| POST | `/tasks` | 新建任务，状态为 `pending` |
-| POST | `/tasks/{id}/claim` | 认领待办，状态变为 `running` |
-| POST | `/tasks/{id}/status` | 把状态改为 `pending` / `running` / `done` / `failed` |
-| GET | `/test-results` | 测试结果列表 |
-| POST | `/test-results` | 写入一条通过或失败 |
-| GET | `/messages` | 普通消息，`to_agent` 为空表示广播 |
-| POST | `/messages` | 发消息 |
-| GET | `/claims?status=held` | 查看资源占用 |
-| POST | `/claims` | 占用资源；已被别人占用时返回 409 |
-| POST | `/claims/release` | 释放自己占用的资源 |
-| GET | `/api/status` | 仪表盘数字：任务数、通过/失败、占用数 |
-
-创建任务的 JSON 示例：
-
-```json
-{"title": "检查示例文件", "skill_id": 1, "payload": {"path": "README.md"}}
-```
-
-认领：`{"assignee": "main"}`。占用资源：`{"resource": "device-1", "owner": "tester-a"}`。
-
-## 协作约定
-
-子代理用 `POST /tasks` 放入待办。主代理用 `POST /tasks/{id}/claim` 按 `pending` 认领，做完后把状态改成 `done` 或 `failed`。
-
-测试子代理每跑完一次，用 `POST /test-results` 记一条，`status` 为 `pass` 或 `fail`。
-
-动手使用共享资源之前先查 `GET /claims?resource=名字&status=held`。没有记录再 `POST /claims`。若返回 409，说明别人占着，不要抢。用完调用 `POST /claims/release`。
-
-## 示例技能
-
-- `skills/echo_check.py`：打印参数并成功退出
-- `skills/file_exists.py`：检查路径是否存在
-- `skills/json_has_key.py`：检查 JSON 顶层是否有某个键
