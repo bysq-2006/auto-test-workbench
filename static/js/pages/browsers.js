@@ -3,7 +3,7 @@
 import { delJSON, postJSON } from "../api.js";
 import { renderList } from "../list.js";
 import { state } from "../state.js";
-import { empty, esc, timeAgo } from "../util.js";
+import { empty, esc, selected, timeAgo } from "../util.js";
 
 const STATUS_LABEL = {
   idle: "空闲",
@@ -14,7 +14,7 @@ const STATUS_LABEL = {
 const INTERVAL_KEY = "wb-browser-shot-interval";
 const MIN_INTERVAL = 0.5;
 const MAX_INTERVAL = 60;
-const DEFAULT_INTERVAL = 1;
+const DEFAULT_INTERVAL = 6;
 
 let shotTimer = 0;
 const inflight = new Set();
@@ -32,11 +32,15 @@ function shotInterval() {
 
 export function loadShotInterval() {
   if (state.shotInterval != null) return;
-  try {
-    state.shotInterval = clampInterval(localStorage.getItem(INTERVAL_KEY));
-  } catch (err) {
+  let raw = null;
+  try { raw = localStorage.getItem(INTERVAL_KEY); } catch (err) { raw = null; }
+  // 没存过时 Number(null) 是 0，会被抬到最短 0.5 秒。以前的默认是 1，一并换成现在的默认。
+  if (raw == null || raw === "" || raw === "1") {
     state.shotInterval = DEFAULT_INTERVAL;
+    try { localStorage.setItem(INTERVAL_KEY, String(DEFAULT_INTERVAL)); } catch (err) { /* 记不住就只用这一次 */ }
+    return;
   }
+  state.shotInterval = clampInterval(raw);
 }
 
 export function saveShotInterval(value) {
@@ -62,6 +66,11 @@ function pcCard(item) {
       <div class="pc-base" aria-hidden="true"></div>
     </div>
     <div class="pc-meta">
+      <div class="pc-name-row">
+        <input class="pc-name" id="browser-name-${esc(item.id)}" data-browser-name="${esc(item.id)}"
+          data-saved-name="${esc(item.name || "")}" value="${esc(item.name || "")}"
+          placeholder="未命名" maxlength="40" aria-label="资源名称" autocomplete="off">
+      </div>
       <div class="pc-meta-top">
         <span class="pc-port">端口 ${esc(item.port)}</span>
         <span class="tag ${esc(item.status)}">${esc(status)}</span>
@@ -85,10 +94,6 @@ export function browserRows(items, limit) {
   return `<div class="pc-grid">${rows.map(pcCard).join("")}</div>`;
 }
 
-function selected(current, value) {
-  return current === value ? " selected" : "";
-}
-
 function browsersToolbar() {
   const q = state.listQuery.browsers || "";
   const status = (state.listFilter.browsers || {}).status || "";
@@ -100,7 +105,7 @@ function browsersToolbar() {
       <option value="occupied"${selected(status, "occupied")}>占用</option>
       <option value="closed"${selected(status, "closed")}>已关闭</option>
     </select>
-    <input id="filter-browsers-q" data-search-kind="browsers" type="search" placeholder="搜索端口或使用者" value="${esc(q)}">
+    <input id="filter-browsers-q" data-search-kind="browsers" type="search" placeholder="搜索名称、端口或使用者" value="${esc(q)}">
     <label class="shot-interval">抓屏间隔
       <input id="filter-browsers-interval" data-shot-interval type="number" min="${MIN_INTERVAL}" max="${MAX_INTERVAL}" step="0.5" value="${esc(interval)}">
       秒
@@ -197,6 +202,29 @@ export function onShotIntervalChange(ev) {
   return true;
 }
 
+/** 名称输入框失焦或回车后提交。没改过就不请求。 */
+export function onBrowserNameCommit(ev) {
+  const el = ev.target.closest("[data-browser-name]");
+  if (!el) return Promise.resolve(false);
+  const id = Number(el.getAttribute("data-browser-name"));
+  if (!Number.isFinite(id) || id < 1) return Promise.resolve(false);
+  const name = el.value.trim().replace(/\s+/g, " ").slice(0, 40);
+  el.value = name;
+  if (name === (el.getAttribute("data-saved-name") || "")) return Promise.resolve(false);
+  el.disabled = true;
+  return postJSON("/browsers/" + id + "/name", { name }).then((row) => {
+    const saved = (row && row.name) || "";
+    el.setAttribute("data-saved-name", saved);
+    const item = state.browsers.find((rowItem) => rowItem.id === id);
+    if (item) item.name = saved;
+    state.error = "";
+    return true;
+  }).catch((err) => {
+    state.error = String(err.message || err);
+    return true;
+  });
+}
+
 export function onBrowsersAction(ev) {
   const start = ev.target.closest("[data-browser-start]");
   if (start) {
@@ -243,6 +271,12 @@ export function onBrowsersAction(ev) {
   if (del.disabled) return Promise.resolve(false);
   const delId = Number(del.getAttribute("data-browser-delete"));
   if (!Number.isFinite(delId) || delId < 1) return Promise.resolve(false);
+  const item = state.browsers.find((row) => row.id === delId);
+  const label = (item && item.name && item.name.trim()) || ("端口 " + (item ? item.port : delId));
+  const ok = window.confirm(
+    "删除「" + label + "」？\n这台电脑上的登录态会一起删掉，删了找不回来。"
+  );
+  if (!ok) return Promise.resolve(false);
   del.disabled = true;
   return delJSON("/browsers/" + delId).then(() => {
     state.error = "";

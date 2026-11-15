@@ -125,3 +125,11 @@ def update_task_status(task_id: int, body: TaskStatusIn, conn: sqlite3.Connectio
         (body.status, agent_name, utcnow(), task_id),
     )
     return _task(conn, task_id)
+
+
+@router.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int, conn: sqlite3.Connection = Depends(get_conn)):
+    """删掉一条任务。挂在它下面的结果不会被删，task_id 自动置空（外键 ON DELETE SET NULL）。"""
+    cur = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    if cur.rowcount != 1:
+        raise HTTPException(404, "task not found")

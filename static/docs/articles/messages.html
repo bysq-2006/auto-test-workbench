@@ -34,4 +34,9 @@
       <p>时间用 ISO 格式，例如 <code>2026-11-12T13:00:00</code>；也可以只写日期 <code>2026-11-12</code>。没写时区时按北京时间（UTC+8）理解。<code>since</code> 和 <code>until</code> 可以只传一个，也可以两个一起构成区间。</p>
       <p><b>返回</b>：对象，包含 <code>items</code>（当前页消息，按时间倒序，最新在前）、<code>total</code>（符合筛选的总条数）、<code>page</code>、<code>limit</code>。每条消息有 <code>id</code>、<code>name</code>、<code>body</code>、<code>created_at</code>。不会返回其他类型的记录。</p>
     </section>
+    <section class="api">
+      <h3><code>DELETE /messages/{id}</code>：删除消息</h3>
+      <p><b>返回</b>：成功 204，没有正文；消息不存在返回 404。</p>
+      <p>聊天厅只追加不修改，删了就找不回来。要留底先抄走正文。</p>
+    </section>
   

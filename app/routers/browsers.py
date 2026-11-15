@@ -18,9 +18,18 @@ from app.browser_proc import (
 from app.browser_shot import ScreenshotError, capture_cdp_screenshot
 from app.db import utcnow
 from app.deps import get_conn
-from app.schemas import BrowserCreateIn, BrowserStatusIn
+from app.schemas import BrowserCreateIn, BrowserNameIn, BrowserStatusIn
 
 router = APIRouter()
+
+NAME_LIMIT = 40
+
+
+def _clean_name(raw: str | None) -> str:
+    name = " ".join((raw or "").split())
+    if len(name) > NAME_LIMIT:
+        raise HTTPException(400, f"名称最多 {NAME_LIMIT} 个字")
+    return name
 
 
 def _browser_out(row) -> dict:
@@ -50,7 +59,7 @@ def list_browsers(
     page: int = Query(1, ge=1),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    """查看浏览器资源。可按状态筛，关键字匹配端口或使用者。"""
+    """查看浏览器资源。可按状态筛，关键字匹配名称、端口或使用者。"""
     where: list[str] = []
     params: list = []
     if status:
@@ -58,8 +67,10 @@ def list_browsers(
         params.append(status)
     if q and q.strip():
         key = f"%{q.strip()}%"
-        where.append("(CAST(port AS TEXT) LIKE ? OR IFNULL(agent_name, '') LIKE ?)")
-        params.extend([key, key])
+        where.append(
+            "(CAST(port AS TEXT) LIKE ? OR IFNULL(name, '') LIKE ? OR IFNULL(agent_name, '') LIKE ?)"
+        )
+        params.extend([key, key, key])
     clause = " AND ".join(where) if where else "1=1"
     total = conn.execute(f"SELECT COUNT(*) AS n FROM browsers WHERE {clause}", params).fetchone()["n"]
     offset = (page - 1) * limit
@@ -90,9 +101,25 @@ def create_browser(
     if "port" in extra:
         raise HTTPException(400, "端口由服务端分配，不能自己传")
     try:
-        return spawn_idle_browser(conn)
+        data = spawn_idle_browser(conn, name=_clean_name(body.name))
     except BrowserLaunchError as exc:
         raise HTTPException(500, str(exc)) from exc
+    return data
+
+
+@router.post("/browsers/{browser_id}/name")
+def rename_browser(
+    browser_id: int,
+    body: BrowserNameIn,
+    conn: sqlite3.Connection = Depends(get_conn),
+):
+    """改这台浏览器的名称。关着也能改，名称跟记录走，不跟进程走。"""
+    name = _clean_name(body.name)
+    row = conn.execute("SELECT id FROM browsers WHERE id = ?", (browser_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, "browser not found")
+    conn.execute("UPDATE browsers SET name = ? WHERE id = ?", (name, browser_id))
+    return _browser(conn, browser_id)
 
 
 @router.get("/browsers/{browser_id}/screenshot")
@@ -142,9 +169,10 @@ def power_on_browser(
     if not port_bindable(port):
         raise HTTPException(409, f"端口 {port} 已被别的进程占用，无法开机")
     try:
-        return spawn_browser_on_record(conn, current)
+        data = spawn_browser_on_record(conn, current)
     except BrowserLaunchError as exc:
         raise HTTPException(500, str(exc)) from exc
+    return data
 
 
 @router.delete("/browsers/{browser_id}")
@@ -152,9 +180,9 @@ def delete_browser(
     browser_id: int,
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    """删掉一条已关闭的资源记录。只删库里的行，不碰进程。
+    """删掉一条已关闭的资源记录，并清掉这台自己的用户数据目录。
 
-    未关闭的记录不许删：真进程可能还在跑，删了记录就等于把端口和登录态弄丢。
+    目录里就是这台电脑的登录态。未关闭的记录不许删：进程可能还在跑。
     先 POST /browsers/{id}/status 置 closed，再删。
     """
     conn.execute("BEGIN IMMEDIATE")
@@ -214,14 +242,13 @@ def update_browser_status(
         conn.commit()
         return _browser(conn, browser_id)
 
-    # closed：先确认是工作台自己的进程，再标终态。进程没了也照样关闭。
+    # closed：只结束进程。用户数据目录留着，开机还是同一台电脑。
     note = stop_owned_browser(current.get("pid"), current.get("user_data_dir") or "", current.get("port") or 0)
     conn.execute(
         "UPDATE browsers SET status = 'closed', updated_at = ? WHERE id = ?",
         (now, browser_id),
     )
     conn.commit()
-    _try_cleanup(current.get("user_data_dir"))
     data = _browser(conn, browser_id)
     if note:
         data["note"] = note

@@ -1,20 +1,13 @@
 /* workbench ui */
 :root {
-  --bg: #e8eaef;
   --panel: #ffffff;
   --text: #111827;
   --muted: #6b7280;
   --line: #c5cad3;
   --soft: #f5f7fa;
   --active: #f3f4f6;
-  --blue: #60a5fa;
   --blue-deep: #3b82f6;
-  --green: #16a34a;
   --red: #dc2626;
-  --orange: #f97316;
-  --purple: #8b5cf6;
-  --shadow: 0 10px 40px rgba(15, 23, 42, 0.06);
-  --radius: 24px;
 }
 
 * { box-sizing: border-box; }
@@ -78,26 +71,6 @@ body {
   letter-spacing: 0.01em;
 }
 
-.side-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--soft);
-  border-radius: 12px;
-  padding: 0 12px;
-  color: var(--muted);
-  height: 40px;
-}
-.side-search input {
-  border: 0;
-  outline: 0;
-  background: transparent;
-  width: 100%;
-  font: inherit;
-  color: var(--text);
-}
-.side-search input::placeholder { color: #9aa3af; }
-
 nav { display: flex; flex-direction: column; gap: 4px; }
 
 nav a {
@@ -131,9 +104,11 @@ nav a.active {
   flex: 1;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 20px 28px 28px;
   background: linear-gradient(#fff, #fbfcfe);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .topbar {
@@ -276,46 +251,17 @@ a.chip:hover { background: var(--active); }
   letter-spacing: -0.02em;
 }
 
-.toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.toolbar input {
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 0 12px;
-  width: 160px;
-  background: #fff;
-  font: inherit;
-}
-
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td {
   text-align: left;
   padding: 12px 10px;
   border-bottom: 1px solid var(--line);
   border-right: 1px solid var(--line);
-  vertical-align: middle;
+  vertical-align: top;
 }
 th:last-child, td:last-child { border-right: 0; }
 th { color: var(--muted); font-weight: 550; font-size: 13px; }
 tr:last-child td { border-bottom: 0; }
-
-.file {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.file i {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: var(--soft);
-  border: 1px solid var(--line);
-  flex-shrink: 0;
-}
 
 .tag {
   display: inline-block;
@@ -330,51 +276,9 @@ tr:last-child td { border-bottom: 0; }
 .tag.running { background: #eff6ff; color: #2563eb; }
 .tag.done, .tag.pass { background: #f0fdf4; color: #15803d; }
 .tag.failed, .tag.fail { background: #fef2f2; color: #b91c1c; }
-.tag.held { background: #fff7ed; color: #c2410c; }
-.tag.released { background: #f3f4f6; color: #6b7280; }
 .tag.idle { background: #f0fdf4; color: #15803d; }
 .tag.occupied { background: #fff7ed; color: #c2410c; }
 .tag.closed { background: #f3f4f6; color: #6b7280; }
-
-.bars { display: flex; align-items: flex-end; gap: 18px; height: 180px; padding: 16px 8px 8px; }
-.bar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  height: 100%;
-  color: var(--muted);
-  font-size: 12px;
-}
-.bar span {
-  width: 100%;
-  max-width: 42px;
-  border-radius: 10px 10px 6px 6px;
-  background: #e5e7eb;
-  min-height: 8px;
-}
-.bar.pending span { background: #d1d5db; }
-.bar.running span { background: #60a5fa; }
-.bar.done span { background: #4ade80; }
-.bar.failed span { background: #f87171; }
-.bar em { font-style: normal; margin-top: 8px; }
-
-.list { list-style: none; margin: 0; padding: 0; }
-.list li {
-  padding: 12px 4px;
-  border-bottom: 1px solid var(--line);
-  font-size: 14px;
-}
-.list li:last-child { border-bottom: 0; }
-.list .path { color: var(--muted); font-size: 12px; margin-top: 4px; }
-.list code {
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 12px;
-  background: var(--soft);
-  padding: 2px 6px;
-  border-radius: 6px;
-}
 
 .empty {
   color: var(--muted);
@@ -417,13 +321,6 @@ tr:last-child td { border-bottom: 0; }
 .pager button:hover:not(:disabled) { background: var(--soft); }
 .pager button:disabled { opacity: 0.45; cursor: default; }
 
-.content {
-  display: flex;
-  flex-direction: column;
-}
-.content {
-  overflow: hidden;
-}
 #page {
   flex: 1;
   min-height: 0;
@@ -433,7 +330,7 @@ tr:last-child td { border-bottom: 0; }
   overflow: hidden;
 }
 
-/* 左侧工作台导航始终保留。文档区不要用负左边距，否则字会被 overflow 裁掉 */
+/* 文档区不要用负左边距，否则字会被 overflow 裁掉 */
 .docs-layout {
   display: flex;
   height: 100%;
@@ -566,30 +463,23 @@ tr:last-child td { border-bottom: 0; }
 .docs-article .api p { margin-bottom: 8px; }
 
 @media (max-width: 980px) {
-  .shell { margin: 0; min-height: 100vh; border-radius: 0; }
   .stats, .dash-grid { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .docs-layout { margin: 0; flex-direction: column; height: auto; }
   .docs-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--line); }
 }
 
-.card-head .toolbar {
-  width: 100%;
-  justify-content: flex-end;
-}
-.card-head .toolbar input {
-  width: min(280px, 100%);
-}
-
-table th,
-table td {
-  text-align: left;
-  vertical-align: top;
-}
 td.time {
   width: 1%;
   white-space: nowrap;
   color: var(--muted, #8a8a8a);
+}
+
+/* 列表最后一列的删除按钮：只占自身宽度，别被长文本挤走 */
+td.row-action-cell {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .list-toolbar {
@@ -654,6 +544,38 @@ button.row-action.is-danger:hover:not(:disabled) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.pc-name-row {
+  margin-bottom: 6px;
+}
+.pc-name {
+  width: 100%;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+.pc-name::placeholder {
+  color: var(--muted);
+  font-weight: 500;
+}
+.pc-name:hover,
+.pc-name:focus {
+  border-color: var(--line);
+  background: #fff;
+}
+.pc-name:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.25);
+  border-color: #93c5fd;
 }
 
 
@@ -761,6 +683,8 @@ td .cell-clip.is-open {
   margin-top: 4px;
   color: var(--muted);
   font-size: 13px;
+  flex-wrap: wrap;
+  row-gap: 6px;
 }
 .shot-interval {
   display: inline-flex;

@@ -1,18 +1,20 @@
 /** 公共聊天厅。可按发送者或正文搜索，方便找 ISSUE。 */
 
-import { renderList } from "../list.js";
+import { actionCell, actionHead, renderList } from "../list.js";
 import { state } from "../state.js";
 import { empty, esc, timeCell, clipCell } from "../util.js";
 
-export function messageList(items, limit) {
+/** compact=true 时不显示删除按钮，给仪表盘预览用。 */
+export function messageList(items, limit, compact = false) {
   const rows = items.slice(0, limit || items.length);
   if (!rows.length) return empty("暂无消息");
   return `<table>
-    <thead><tr><th>发送者</th><th>内容</th><th>时间</th></tr></thead>
+    <thead><tr><th>发送者</th><th>内容</th><th>时间</th>${compact ? "" : actionHead()}</tr></thead>
     <tbody>${rows.map((msg) => `<tr>
-      <td>${esc(msg.name || msg.from_agent || "匿名")}</td>
+      <td>${esc(msg.name || "匿名")}</td>
       ${clipCell("messages", msg.id, "body", msg.body)}
       ${timeCell(msg.created_at)}
+      ${compact ? "" : actionCell("messages", msg.id)}
     </tr>`).join("")}</tbody>
   </table>`;
 }

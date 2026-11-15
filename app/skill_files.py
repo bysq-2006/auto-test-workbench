@@ -58,13 +58,29 @@ def read_skill(path: Path) -> dict:
     return {"name": name, "description": description, "path": rel}
 
 
+# 公共库目录名。skills/ 下叫这些名字的目录整棵不扫，里面的模块只供 import。
+# lib 是规范名（2026-11-13 起业务库 bzcore 已统一改名 lib，旧名不再保留）。
+LIB_DIRS = {"lib"}
+
+
+def _is_hidden(rel: Path) -> bool:
+    """下划线开头的文件或目录都不算技能（草稿区、__pycache__ 都靠这条排除）。"""
+    return any(part.startswith("_") for part in rel.parts)
+
+
+def _is_library(rel: Path) -> bool:
+    """固定名字的目录是公共库，不是技能。"""
+    return bool(rel.parts) and rel.parts[0] in LIB_DIRS
+
+
 def scan_skills() -> list[dict]:
-    """扫描 skills/*.py，介绍来自文件内部的 SKILL 字典或模块文档字符串。"""
+    """递归扫描 skills/ 下的 *.py，介绍来自文件内部的 SKILL 字典或模块文档字符串。"""
     items = []
     if not SKILLS_DIR.is_dir():
         return items
-    for path in sorted(SKILLS_DIR.glob("*.py")):
-        if path.name.startswith("_"):
+    for path in sorted(SKILLS_DIR.rglob("*.py")):
+        rel = path.relative_to(SKILLS_DIR)
+        if _is_hidden(rel) or _is_library(rel):
             continue
         items.append(read_skill(path))
     return items
@@ -77,7 +93,9 @@ def resolve_skill(ref: str | None) -> dict | None:
     key = str(ref).strip().replace("\\", "/")
     for item in scan_skills():
         path = item["path"]
-        if key in {path, Path(path).name, Path(path).stem, item["name"]}:
+        # 子目录里的技能除了完整路径，也认 skills/ 之后的相对路径，如 sub/x.py
+        inner = path[len("skills/"):] if path.startswith("skills/") else path
+        if key in {path, inner, Path(path).name, Path(path).stem, item["name"]}:
             return item
     return None
 

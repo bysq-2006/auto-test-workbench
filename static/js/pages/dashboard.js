@@ -132,11 +132,11 @@ export function renderDashboard() {
     <section class="dash-grid">
       <div class="card">
         <div class="card-head"><h2>最近结果</h2><a class="more" href="#/results">全部</a></div>
-        ${resultRows(state.results, 8)}
+        ${resultRows(state.results, 8, true)}
       </div>
       <div class="card">
         <div class="card-head"><h2>最近消息</h2><a class="more" href="#/messages">全部</a></div>
-        ${messageList(state.messages, 8)}
+        ${messageList(state.messages, 8, true)}
       </div>
     </section>
     <section class="card dash-wide">

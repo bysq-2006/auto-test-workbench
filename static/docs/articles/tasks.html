@@ -36,3 +36,8 @@
       <p><b>接收</b>：JSON，<code>status</code>（必填，<code>pending</code> / <code>running</code> / <code>done</code> / <code>failed</code>）、<code>agent_name</code>（可选）。标成 <code>running</code> 时必须有 <code>agent_name</code>；改回 <code>pending</code> 会清掉负责人。</p>
       <p><b>返回</b>：更新后的任务。</p>
     </section>
+    <section class="api">
+      <h3><code>DELETE /tasks/{id}</code>：删除任务</h3>
+      <p><b>返回</b>：成功 204，没有正文；任务不存在返回 404。</p>
+      <p>删任务不连带删结果。挂在这条任务上的结果会保留，只是 <code>task_id</code> 被置空（外键 <code>ON DELETE SET NULL</code>），列表里「绑定的任务」一栏变成 <code>—</code>。</p>
+    </section>

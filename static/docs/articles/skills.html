@@ -1,14 +1,23 @@
     <h1>技能</h1>
-    <p>技能不进数据库。每次调用接口都会扫描 <code>skills/*.py</code>（以下划线开头的文件会跳过），只读文件内容，不会执行脚本。改技能就是在这个目录里增删或改脚本。</p>
+    <p>技能不进数据库。每次调用接口都会递归扫描 <code>skills/</code> 下的 <code>*.py</code>，只读文件内容，不会执行脚本。改技能就是在这个目录里增删或改脚本，子目录里的脚本同样能扫到。</p>
+    <p>下面两类不算技能，不会出现在列表里：</p>
+    <ul>
+      <li>下划线开头的文件和目录，如 <code>_draft/</code>、<code>__pycache__</code>。</li>
+      <li>固定名字的公共库目录，见下一节。</li>
+    </ul>
+    <h2>公共库</h2>
+    <p><code>skills/</code> 顶层叫 <code>lib</code> 的目录是公共库，整棵子树都不扫，里面的模块只供技能脚本 import，看不出是技能。目录现在还是空的，旧脚本已整体删掉，从零开始写。</p>
+    <p>规则只看目录名，不看 <code>__init__.py</code>。以前靠有没有 <code>__init__.py</code> 猜哪个目录是包，副作用是一个包只要补了 <code>__init__.py</code>，整个目录里的脚本会突然从技能列表里消失。</p>
     <p>介绍写在文件内部，按下面的顺序读取：</p>
     <ul>
-      <li>如果写了 <code>SKILL = {"name": "...", "description": "..."}</code>，优先用这里的名字和介绍。</li>
+      <li>如果写了 <code>SKILL = {"name": "...", "description": "..."}</code>（带类型注解的 <code>SKILL: dict = {...}</code> 也算），优先用这里的名字和介绍。</li>
       <li>否则，技能名用文件名（不含 <code>.py</code>），介绍用文件开头的模块文档字符串。</li>
     </ul>
     <h2>作为参数引用技能</h2>
     <p>任务和结果都不存技能 id，只记 <code>skill_path</code> 文本。创建任务或回写结果时，<code>skill</code> 参数可以写下面任意一种，服务端都能解析到同一个脚本：</p>
     <ul>
-      <li>相对路径：<code>skills/echo_check.py</code></li>
+      <li>完整路径：<code>skills/echo_check.py</code>、<code>skills/sub/inner.py</code></li>
+      <li>相对 <code>skills/</code> 的路径：<code>sub/inner.py</code></li>
       <li>带后缀的文件名：<code>echo_check.py</code></li>
       <li>不带后缀的名字：<code>echo_check</code></li>
       <li><code>SKILL</code> 里写的 <code>name</code></li>

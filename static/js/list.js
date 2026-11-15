@@ -1,5 +1,6 @@
 /** 各列表共用标题、卡片和分页。筛选和搜索由各页自己写。 */
 
+import { delJSON } from "./api.js";
 import { LIST_PAGE_SIZE, state } from "./state.js";
 import { esc } from "./util.js";
 
@@ -32,5 +33,48 @@ export function onPagerClick(ev) {
   const next = Number(btn.getAttribute("data-page"));
   if (!state.listPage[kind] || !Number.isFinite(next) || next < 1 || next === state.listPage[kind]) return false;
   state.listPage[kind] = next;
+  return true;
+}
+
+const DELETE_PATH = {
+  tasks: "/tasks",
+  results: "/results",
+  messages: "/messages",
+};
+
+const DELETE_LABEL = {
+  tasks: "任务",
+  results: "结果",
+  messages: "消息",
+};
+
+/** 表头。列表页统一在最后一列放删除按钮。 */
+export function actionHead() {
+  return "<th></th>";
+}
+
+/** 行尾的删除按钮后面那一格。 */
+export function actionCell(kind, id) {
+  if (!DELETE_PATH[kind]) return "<td></td>";
+  return `<td class="row-action-cell"><button type="button" class="row-action is-danger"
+    data-del-kind="${esc(kind)}" data-del-id="${esc(id)}">删除</button></td>`;
+}
+
+/** 点删除按钮：先确认，再打 DELETE，成功返回 true 让调用方重绘。 */
+export async function onDeleteClick(ev) {
+  const btn = ev.target.closest("[data-del-kind]");
+  if (!btn || btn.disabled) return false;
+  const kind = btn.getAttribute("data-del-kind");
+  const id = Number(btn.getAttribute("data-del-id"));
+  const path = DELETE_PATH[kind];
+  if (!path || !Number.isFinite(id) || id < 1) return false;
+  if (!window.confirm(`删除${DELETE_LABEL[kind]} #${id}？删了找不回来。`)) return false;
+  btn.disabled = true;
+  try {
+    await delJSON(path + "/" + id);
+    state.error = "";
+  } catch (err) {
+    state.error = String(err.message || err);
+  }
   return true;
 }

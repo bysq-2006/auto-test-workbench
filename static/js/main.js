@@ -2,9 +2,10 @@
 
 import { load } from "./api.js";
 import { docsCrumb, docsReady, loadArticles, renderDocs } from "./docs.js";
-import { onPagerClick } from "./list.js";
+import { onDeleteClick, onPagerClick } from "./list.js";
 import { renderDashboard } from "./pages/dashboard.js";
 import {
+  onBrowserNameCommit,
   onBrowsersAction,
   onShotIntervalChange,
   renderBrowsers,
@@ -39,11 +40,13 @@ function setPageHtml(html) {
     id: active.id,
     start: active.selectionStart,
     end: active.selectionEnd,
+    value: active.matches("[data-browser-name]") ? active.value : null,
   } : null;
   page.innerHTML = html;
   if (!restore) return;
   const el = document.getElementById(restore.id);
   if (!el) return;
+  if (restore.value != null) el.value = restore.value;
   el.focus();
   if (typeof restore.start === "number" && typeof el.setSelectionRange === "function") {
     try { el.setSelectionRange(restore.start, restore.end); } catch (err) { /* 下拉框没有选区 */ }
@@ -133,6 +136,10 @@ $("page").addEventListener("click", async (ev) => {
     refresh();
     return;
   }
+  if (await onDeleteClick(ev)) {
+    refresh();
+    return;
+  }
   if (await onBrowsersAction(ev)) refresh();
 });
 
@@ -147,8 +154,12 @@ $("page").addEventListener("input", (ev) => {
   queueSearchRefresh();
 });
 
-$("page").addEventListener("change", (ev) => {
+$("page").addEventListener("change", async (ev) => {
   if (onShotIntervalChange(ev)) return;
+  if (await onBrowserNameCommit(ev)) {
+    refresh();
+    return;
+  }
   const el = ev.target.closest("[data-filter-kind]");
   if (!el) return;
   const kind = el.getAttribute("data-filter-kind");
@@ -164,6 +175,12 @@ $("page").addEventListener("change", (ev) => {
 
 $("page").addEventListener("keydown", (ev) => {
   if (ev.key !== "Enter") return;
+  const nameInput = ev.target.closest("[data-browser-name]");
+  if (nameInput) {
+    ev.preventDefault();
+    nameInput.blur();
+    return;
+  }
   if (!ev.target.closest("[data-search-kind]")) return;
   ev.preventDefault();
   clearTimeout(searchTimer);

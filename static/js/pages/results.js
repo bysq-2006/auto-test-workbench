@@ -1,16 +1,17 @@
 /** 子代理回写结果。测试通过/失败是其中一种，也可以记普通结果。 */
 
-import { renderList } from "../list.js";
+import { actionCell, actionHead, renderList } from "../list.js";
 import { state } from "../state.js";
-import { empty, esc, tag, timeCell, clipCell } from "../util.js";
+import { empty, esc, selected, tag, timeCell, clipCell } from "../util.js";
 
 const KIND_LABEL = { test: "测试", note: "通用" };
 
-export function resultRows(items, limit) {
+/** compact=true 时不显示删除按钮，给仪表盘预览用。 */
+export function resultRows(items, limit, compact = false) {
   const rows = items.slice(0, limit || items.length);
   if (!rows.length) return empty("暂无结果");
   return `<table>
-    <thead><tr><th>代理</th><th>类型</th><th>绑定的任务</th><th>内容</th><th>状态</th><th>主 AI 记录</th><th>时间</th></tr></thead>
+    <thead><tr><th>代理</th><th>类型</th><th>绑定的任务</th><th>内容</th><th>状态</th><th>主 AI 记录</th><th>时间</th>${compact ? "" : actionHead()}</tr></thead>
     <tbody>${rows.map((item) => `<tr>
       <td>${esc(item.agent_name)}</td>
       <td>${esc(KIND_LABEL[item.kind] || item.kind || "通用")}</td>
@@ -19,12 +20,9 @@ export function resultRows(items, limit) {
       <td>${item.status ? tag(item.status) : "—"}</td>
       <td>${item.recorded ? '<span class="tag done">已记录</span>' : '<span class="tag pending">未记录</span>'}</td>
       ${timeCell(item.created_at)}
+      ${compact ? "" : actionCell("results", item.id)}
     </tr>`).join("")}</tbody>
   </table>`;
-}
-
-function selected(current, value) {
-  return current === value ? " selected" : "";
 }
 
 function resultsToolbar() {

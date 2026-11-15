@@ -18,7 +18,10 @@ FORBIDDEN_PORT = 9229
 PORT_START = 9330
 PORT_SPAN = 2000
 
-RUN_DIR = ROOT / "runs" / "browsers"
+# 每台浏览器一份目录，放在 data/ 里。关闭不删，删资源才删，所以不放会被动清的 runs/
+PROFILE_ROOT = ROOT / "data" / "browsers"
+# 强制结束后 Chrome 会留下这些锁，下次用同一目录开机前清掉，否则会以为配置还被占用
+_PROFILE_LOCKS = ("SingletonLock", "SingletonCookie", "SingletonSocket", "lockfile")
 
 
 class BrowserLaunchError(Exception):
@@ -115,14 +118,28 @@ def pick_free_port(conn) -> int:
 
 def prepare_user_data_dir(port: int) -> Path:
     """每个实例一个独立目录，绝对路径，不要用用户默认 Chrome 配置。"""
-    RUN_DIR.mkdir(parents=True, exist_ok=True)
-    path = (RUN_DIR / f"{port}-{uuid.uuid4().hex[:12]}").resolve()
+    PROFILE_ROOT.mkdir(parents=True, exist_ok=True)
+    path = (PROFILE_ROOT / f"{port}-{uuid.uuid4().hex[:12]}").resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def launch_browser(exe: Path, port: int, user_data_dir: Path) -> int:
-    """用操作系统子进程拉起可见窗口，只记录 PID，不持有 Playwright 对象。"""
+def _clear_profile_locks(user_data_dir: Path) -> None:
+    """同一份目录再次开机前，清掉上次强制结束留下的锁文件。"""
+    for name in _PROFILE_LOCKS:
+        path = user_data_dir / name
+        try:
+            if path.exists() or path.is_symlink():
+                path.unlink()
+        except OSError:
+            pass
+
+
+def launch_browser(exe: Path, port: int, user_data_dir: Path, *, restore: bool = False) -> int:
+    """用操作系统子进程拉起可见窗口，只记录 PID，不持有 Playwright 对象。
+
+    restore 为真时回到这台电脑上次的页面。登录态在 user-data-dir 里，不用另外拷。
+    """
     if port == FORBIDDEN_PORT:
         raise BrowserLaunchError("禁止使用 9229")
     args = [
@@ -132,8 +149,11 @@ def launch_browser(exe: Path, port: int, user_data_dir: Path) -> int:
         "--no-first-run",
         "--no-default-browser-check",
         "--remote-allow-origins=*",
-        "about:blank",
     ]
+    if restore:
+        args.append("--restore-last-session")
+    else:
+        args.append("about:blank")
     kwargs: dict = {
         "stdout": subprocess.DEVNULL,
         "stderr": subprocess.DEVNULL,
@@ -156,7 +176,7 @@ def launch_browser(exe: Path, port: int, user_data_dir: Path) -> int:
     return int(proc.pid)
 
 
-def spawn_idle_browser(conn) -> dict:
+def spawn_idle_browser(conn, name: str = "") -> dict:
     """选端口、启动、写入 idle 记录。失败时不留可用记录，并清掉本次目录。"""
     exe = find_browser_exe()
     if exe is None:
@@ -173,10 +193,10 @@ def spawn_idle_browser(conn) -> dict:
         now = utcnow()
         cur = conn.execute(
             """
-            INSERT INTO browsers (port, status, agent_name, pid, user_data_dir, created_at, updated_at)
-            VALUES (?, 'idle', NULL, ?, ?, ?, ?)
+            INSERT INTO browsers (port, name, status, agent_name, pid, user_data_dir, created_at, updated_at)
+            VALUES (?, ?, 'idle', NULL, ?, ?, ?, ?)
             """,
-            (port, pid, str(user_data_dir), now, now),
+            (port, name, pid, str(user_data_dir), now, now),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM browsers WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -204,11 +224,12 @@ def spawn_browser_on_record(conn, record: dict) -> dict:
     raw_dir = (record.get("user_data_dir") or "").strip()
     user_data_dir = Path(raw_dir).resolve() if raw_dir else prepare_user_data_dir(port)
     user_data_dir.mkdir(parents=True, exist_ok=True)
+    _clear_profile_locks(user_data_dir)
 
     conn.execute("BEGIN IMMEDIATE")
     pid: int | None = None
     try:
-        pid = launch_browser(exe, port, user_data_dir)
+        pid = launch_browser(exe, port, user_data_dir, restore=True)
         conn.execute(
             """
             UPDATE browsers

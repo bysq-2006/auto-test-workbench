@@ -114,3 +114,11 @@ def set_recorded(result_id: int, body: ResultRecordedIn, conn: sqlite3.Connectio
     row = conn.execute("SELECT * FROM test_results WHERE id = ?", (result_id,)).fetchone()
     return _result_out(conn, row)
 
+
+@router.delete("/results/{result_id}", status_code=204)
+def delete_result(result_id: int, conn: sqlite3.Connection = Depends(get_conn)):
+    """删掉一条结果。只删自己，不影响它绑定的任务。"""
+    cur = conn.execute("DELETE FROM test_results WHERE id = ?", (result_id,))
+    if cur.rowcount != 1:
+        raise HTTPException(404, "result not found")
+

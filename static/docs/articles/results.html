@@ -32,3 +32,8 @@
       <p><b>接收</b>：JSON，<code>recorded</code>（必填，<code>true</code> 或 <code>false</code>）。</p>
       <p><b>返回</b>：更新后的结果。找不到这条时返回 404。</p>
     </section>
+    <section class="api">
+      <h3><code>DELETE /results/{id}</code>：删除结果</h3>
+      <p><b>返回</b>：成功 204，没有正文；结果不存在返回 404。</p>
+      <p>只删这一条，不影响它绑定的任务。删了就找不回来，要留底就先抄走 <code>summary</code> 和 <code>log_text</code>。</p>
+    </section>

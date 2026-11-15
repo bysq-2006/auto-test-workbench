@@ -108,3 +108,11 @@ def create_message(body: MessageIn, conn: sqlite3.Connection = Depends(get_conn)
         (cur.lastrowid,),
     ).fetchone()
     return _message_out(row)
+
+
+@router.delete("/messages/{message_id}", status_code=204)
+def delete_message(message_id: int, conn: sqlite3.Connection = Depends(get_conn)):
+    """删掉一条消息。聊天厅只追加，删错了找不回来。"""
+    cur = conn.execute("DELETE FROM messages WHERE id = ?", (message_id,))
+    if cur.rowcount != 1:
+        raise HTTPException(404, "message not found")

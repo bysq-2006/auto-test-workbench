@@ -15,15 +15,6 @@ export function esc(value) {
   }[ch]));
 }
 
-export function firstLine(text) {
-  return String(text || "").split("\n")[0];
-}
-
-export function spark(kind, values) {
-  const max = Math.max(1, ...values);
-  return `<div class="spark ${kind}">${values.map((n) => `<i style="height:${Math.max(12, Math.round((n / max) * 42))}px"></i>`).join("")}</div>`;
-}
-
 export function tag(status) {
   return `<span class="tag ${esc(status)}">${esc(status || "—")}</span>`;
 }
@@ -32,15 +23,9 @@ export function empty(text) {
   return `<div class="empty">${esc(text)}</div>`;
 }
 
-export function query() {
-  return ($("search")?.value || "").trim().toLowerCase();
-}
-
-/** 侧栏搜索只在已经拉到的数据里做包含匹配，不再请求后端。 */
-export function filterText(item) {
-  const q = query();
-  if (!q) return true;
-  return JSON.stringify(item).toLowerCase().includes(q);
+/** 下拉选项是否选中。 */
+export function selected(current, value) {
+  return current === value ? " selected" : "";
 }
 
 /** 把后端的 UTC 时间做成「3 分钟前」这种相对说法。 */
