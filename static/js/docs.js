@@ -7,7 +7,6 @@ export const DOCS = {
     label: "测试",
     items: [
       { id: "skills", label: "技能" },
-      { id: "nav", label: "导航" },
       { id: "tasks", label: "任务" },
       { id: "results", label: "结果" },
       { id: "browsers", label: "资源" },
