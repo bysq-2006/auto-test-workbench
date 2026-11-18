@@ -16,18 +16,6 @@
 - **前端 `static/`**：工作台页面（技能、测试结果、消息）和静态「使用说明」。说明按测试、沟通分组。
 - **约定 `AGENTS.md`**：前后端怎么用、创建子代理与多 Agent 协作、脚本编写规范。脚本编写规范里要求每个脚本都能传入端口号。
 
+## 环境更改
 
-## 殡葬测试技能（2026-11-13 从 Auto-ctrl-bz 迁入）
-
-`skills/` 里新增 5 个殡葬系统流程技能（均按 AGENTS.md「脚本编写规范」改造）：
-`add_reservation`（接运预约）、`dispatch_vehicle`（派车/出车/回馆）、`do_business`（业务任务块）、
-`freeze_task`（冷藏柜动作）、`mission_action`（火化/领灰等任务动作）。
-
-- 共用代码在 `skills/lib/`（公共库目录，不参与技能扫描；2026-11-13 由 bzcore 统一改名而来）：
-  `ep_form/ui/waitx/goto_page` 原样迁自
-  Auto-ctrl-bz，`browser.py`（CDP 必传，缺了退出码 2）、`diag.py`（console 错误 + 失败响应 hook）、
-  `output.py`（统一收尾：等安静→0.3s→全页截图、失败落诊断、末行 JSON、退出码 0/1/2）。
-- 原项目里的隐式默认值已去掉：操作工/核验人（原 zzx）、接运车辆/司机、逝者姓名一律必传；
-  CDP 地址必传（--cdp 或 BZ_CDP_URL），不再默认 9223/9229。
-- 路由表 `data/routes_map.json` 一并迁入（goto_page 按菜单名跳转时用）。
-- 其余 200+ 旧脚本仍留在 D:/bysq_D/Auto-ctrl-bz，按需再迁；两边共用模块已分叉，改动不要互拷。
+- start等脚本启动路径用的是我电脑的，如果你是ai正在阅读这份规则，请你先去配置一个可以使用playwright等库的python环境然后更改start.bat
