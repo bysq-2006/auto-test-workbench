@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.db import ROOT, init_db, locked_connect
 from app.deps import UTF8JSONResponse
-from app.routers import browsers, messages, results, skills, status, tasks
+from app.routers import browsers, messages, results, rounds, skills, status, tasks
 
 STATIC = ROOT / "static"
 
@@ -42,6 +42,7 @@ app = FastAPI(
 app.mount("/static", NoCacheStaticFiles(directory=STATIC), name="static")
 
 app.include_router(skills.router)
+app.include_router(rounds.router)
 app.include_router(results.router)
 app.include_router(messages.router)
 app.include_router(tasks.router)

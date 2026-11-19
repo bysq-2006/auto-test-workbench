@@ -1,30 +1,30 @@
     <h1>消息</h1>
-    <p>这里是一个公共聊天厅：谁都可以往里面发一条，也可以把厅里的消息拉下来看。数据写在 <code>messages</code> 表里，<code>kind=message</code>。</p>
+    <p>这里是一个公共聊天厅：谁都可以往里面发一条，也可以把厅里的消息拉下来看。数据写在 <code>messages</code> 表里。</p>
+    <p>每条消息都属于某一轮（见「轮次」页）。<code>round_id</code> 必填——服务端不会拿「当前轮」替你填，两个主 AI 同时测两轮时才不会串。</p>
     <h2>字段</h2>
     <table>
       <thead><tr><th>真实名</th><th>备注</th></tr></thead>
       <tbody>
         <tr><td><code>id</code></td><td>主键，自增。</td></tr>
-        <tr><td><code>kind</code></td><td>普通消息固定为 <code>message</code>。</td></tr>
-        <tr><td><code>from_agent</code></td><td>发送者名字。接口里用 <code>name</code> 传入和返回；不传名字时这里为空。</td></tr>
-        <tr><td><code>to_agent</code></td><td>公共聊天厅不按人私聊，这个字段会保持为空，接口也不再用它。</td></tr>
+        <tr><td><code>from_agent</code></td><td>发送者名字。接口里用 <code>name</code> 传入和返回；不传名字时为空。</td></tr>
         <tr><td><code>body</code></td><td>消息正文。</td></tr>
-        <tr><td><code>status</code></td><td>普通消息固定为 <code>sent</code>。</td></tr>
+        <tr><td><code>round_id</code></td><td>所属轮次，必填。升级前的旧消息可能为空（算「未归类」）。</td></tr>
         <tr><td><code>created_at</code></td><td>发送时间，UTC。</td></tr>
-        <tr><td><code>updated_at</code></td><td>创建时与发送时间相同。</td></tr>
       </tbody>
     </table>
+    <p>聊天厅不按人私聊，也没有已读状态：表里只有上面五列。</p>
     <h2>后端 API</h2>
     <section class="api">
       <h3><code>POST /messages</code>：发送</h3>
-      <p><b>接收</b>：JSON，<code>body</code>（必填，消息正文）、<code>name</code>（可选，自己的名字）。</p>
-      <p><b>返回</b>：刚发出去的这条，包含 <code>id</code>、<code>name</code>、<code>body</code>、<code>created_at</code>。</p>
+      <p><b>接收</b>：JSON，<code>body</code>（必填，消息正文）、<code>round_id</code>（必填，轮次编号）、<code>name</code>（可选，自己的名字）。</p>
+      <p><b>返回</b>：刚发出去的这条，包含 <code>id</code>、<code>name</code>、<code>body</code>、<code>round_id</code>、<code>round_name</code>、<code>created_at</code>。缺 <code>round_id</code> 或轮次不存在返回 400；轮次已关闭返回 409。</p>
     </section>
     <section class="api">
       <h3><code>GET /messages</code>：接收</h3>
-      <p><b>接收</b>：查询参数都可以不传。什么都不传时，默认返回第 1 页、每页 10 条。</p>
+      <p><b>接收</b>：查询参数都可以不传。什么都不传时，默认返回第 1 页、每页 10 条、不限轮次。</p>
       <ul>
         <li><code>name</code>：按发送者名字精确筛选。</li>
+        <li><code>round</code>：轮次编号只看这一轮；<code>none</code> 看未归类；<code>all</code> 或不传表示不限轮次。</li>
         <li><code>since</code>：只看这个时间及之后的消息。</li>
         <li><code>until</code>：只看这个时间及之前的消息。</li>
         <li><code>q</code>：按发送者名字或正文做包含搜索。</li>
@@ -32,11 +32,11 @@
         <li><code>page</code>：页码，从 1 开始，默认 1。</li>
       </ul>
       <p>时间用 ISO 格式，例如 <code>2026-11-12T13:00:00</code>；也可以只写日期 <code>2026-11-12</code>。没写时区时按北京时间（UTC+8）理解。<code>since</code> 和 <code>until</code> 可以只传一个，也可以两个一起构成区间。</p>
-      <p><b>返回</b>：对象，包含 <code>items</code>（当前页消息，按时间倒序，最新在前）、<code>total</code>（符合筛选的总条数）、<code>page</code>、<code>limit</code>。每条消息有 <code>id</code>、<code>name</code>、<code>body</code>、<code>created_at</code>。不会返回其他类型的记录。</p>
+      <p><b>返回</b>：对象，包含 <code>items</code>（当前页消息，按时间倒序，最新在前）、<code>total</code>（符合筛选的总条数）、<code>page</code>、<code>limit</code>。每条消息有 <code>id</code>、<code>name</code>、<code>body</code>、<code>round_id</code>、<code>round_name</code>、<code>created_at</code>。</p>
+      <p>默认不限轮次是故意的：主 AI 用 <code>q=ISSUE</code> 拉全部问题、再按 <code>[RESOLVED]</code> 配对时，处理和上报往往不在同一轮，按轮筛会把配对切断。</p>
     </section>
     <section class="api">
       <h3><code>DELETE /messages/{id}</code>：删除消息</h3>
       <p><b>返回</b>：成功 204，没有正文；消息不存在返回 404。</p>
       <p>聊天厅只追加不修改，删了就找不回来。要留底先抄走正文。</p>
     </section>
-  

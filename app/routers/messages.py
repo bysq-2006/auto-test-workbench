@@ -1,4 +1,4 @@
-"""公共聊天厅：发送和接收消息。"""
+"""公共聊天厅：发送和接收消息。消息和任务、结果一样挂在某一轮下面。"""
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -7,11 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import utcnow
 from app.deps import get_conn
+from app.round_scope import require_open_round, round_filter
 from app.schemas import MessageIn
 
 router = APIRouter()
 
 BEIJING = timezone(timedelta(hours=8))
+
+_SELECT = """
+    SELECT m.*, r.name AS round_name
+    FROM messages m
+    LEFT JOIN rounds r ON r.id = m.round_id
+"""
 
 
 def _parse_time(value: str, *, end: bool = False) -> str:
@@ -39,6 +46,8 @@ def _message_out(row) -> dict:
         "id": data["id"],
         "name": data["from_agent"] or "",
         "body": data["body"],
+        "round_id": data["round_id"],
+        "round_name": data.get("round_name"),
         "created_at": data["created_at"],
     }
 
@@ -49,37 +58,45 @@ def list_messages(
     q: str | None = Query(None),
     since: str | None = Query(None),
     until: str | None = Query(None),
+    round: str | None = Query(None),
     limit: int = Query(10, ge=1, le=200),
     page: int = Query(1, ge=1),
     conn: sqlite3.Connection = Depends(get_conn),
 ):
-    """拉取公共聊天厅消息。什么筛选都不传时，默认第 1 页、每页 10 条。q 是标题和正文的包含搜索。"""
+    """拉取公共聊天厅消息。默认第 1 页、每页 10 条。
+
+    round 不传就是不限轮次——跨轮配 [ISSUE] / [RESOLVED] 时要的就是这个；
+    只看某一轮传编号，只看未归类传 none。
+    """
     where: list[str] = []
     params: list = []
     if name and name.strip():
-        where.append("from_agent = ?")
+        where.append("m.from_agent = ?")
         params.append(name.strip())
     if q and q.strip():
         key = f"%{q.strip()}%"
-        where.append("(IFNULL(from_agent, '') LIKE ? OR IFNULL(body, '') LIKE ?)")
+        where.append("(IFNULL(m.from_agent, '') LIKE ? OR IFNULL(m.body, '') LIKE ?)")
         params.extend([key, key])
     if since and since.strip():
-        where.append("created_at >= ?")
+        where.append("m.created_at >= ?")
         params.append(_parse_time(since, end=False))
     if until and until.strip():
-        where.append("created_at <= ?")
+        where.append("m.created_at <= ?")
         params.append(_parse_time(until, end=True))
+    fragment, fragment_args = round_filter(round, "m.round_id")
+    if fragment:
+        where.append(fragment)
+        params.extend(fragment_args)
     clause = " AND ".join(where) if where else "1=1"
     total = conn.execute(
-        f"SELECT COUNT(*) AS n FROM messages WHERE {clause}",
+        f"SELECT COUNT(*) AS n FROM messages m WHERE {clause}",
         params,
     ).fetchone()["n"]
     offset = (page - 1) * limit
     rows = conn.execute(
         f"""
-        SELECT id, from_agent, body, created_at
-        FROM messages WHERE {clause}
-        ORDER BY id DESC LIMIT ? OFFSET ?
+        {_SELECT} WHERE {clause}
+        ORDER BY m.id DESC LIMIT ? OFFSET ?
         """,
         (*params, limit, offset),
     ).fetchall()
@@ -93,20 +110,18 @@ def list_messages(
 
 @router.post("/messages", status_code=201)
 def create_message(body: MessageIn, conn: sqlite3.Connection = Depends(get_conn)):
-    """往公共聊天厅发一条。名字可不传。"""
+    """往公共聊天厅发一条。名字可空，轮次必填。"""
+    require_open_round(conn, body.round_id)
     now = utcnow()
     name = (body.name or "").strip()
     cur = conn.execute(
         """
-        INSERT INTO messages (from_agent, body, created_at)
-        VALUES (?, ?, ?)
+        INSERT INTO messages (from_agent, body, round_id, created_at)
+        VALUES (?, ?, ?, ?)
         """,
-        (name, body.body, now),
+        (name, body.body, body.round_id, now),
     )
-    row = conn.execute(
-        "SELECT id, from_agent, body, created_at FROM messages WHERE id = ?",
-        (cur.lastrowid,),
-    ).fetchone()
+    row = conn.execute(f"{_SELECT} WHERE m.id = ?", (cur.lastrowid,)).fetchone()
     return _message_out(row)
 
 

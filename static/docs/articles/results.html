@@ -1,5 +1,6 @@
     <h1>结果</h1>
     <p>对应数据表 <code>test_results</code>。各子代理把干完的结果回写到这里，不限于测试。用 <code>kind</code> 区分类型：<code>test</code> 是测试结果，要带通过或失败；<code>note</code> 是通用结果，不用带状态。可以挂到某个任务或技能上，也可以都不挂。</p>
+    <p><b>轮次归属</b>：挂了 <code>task_id</code> 就自动沿用那条任务的 <code>round_id</code>，不用再传；如果同时传了 <code>round_id</code> 又和任务对不上，返回 400。没挂 <code>task_id</code> 的，<code>round_id</code> 必填。</p>
     <h2>字段</h2>
     <table>
       <thead><tr><th>真实名</th><th>备注</th></tr></thead>
@@ -13,19 +14,20 @@
         <tr><td><code>summary</code></td><td>结果内容或摘要，可空。</td></tr>
         <tr><td><code>log_text</code></td><td>详细日志，可空。</td></tr>
         <tr><td><code>recorded</code></td><td>主 AI 是否已经记录过这条。默认 <code>false</code>。</td></tr>
+        <tr><td><code>round_id</code></td><td>所属轮次。有 <code>task_id</code> 时从任务抄，没有时必填。</td></tr>
         <tr><td><code>created_at</code></td><td>回写时间，UTC。</td></tr>
       </tbody>
     </table>
     <h2>后端 API</h2>
     <section class="api">
       <h3><code>GET /results</code>：查看结果</h3>
-      <p><b>接收</b>：查询参数 <code>kind</code>（可选，<code>test</code> 或 <code>note</code>）、<code>recorded</code>（可选，<code>true</code> 或 <code>false</code>）、<code>q</code>（可选，按代理名、类型、状态、内容、任务标题等包含匹配）、<code>limit</code>（默认 10，最大 200）、<code>page</code>（默认 1）。</p>
-      <p><b>返回</b>：对象 <code>{items, total, page, limit}</code>。<code>items</code> 为结果数组。除表字段外，还会带上 <code>skill_name</code>、<code>task_title</code>（根据当前技能目录和任务表补上）。</p>
+      <p><b>接收</b>：查询参数 <code>kind</code>（可选，<code>test</code> 或 <code>note</code>）、<code>recorded</code>（可选，<code>true</code> 或 <code>false</code>）、<code>round</code>（可选，轮次编号；<code>none</code> 查未归类；<code>all</code> 或不传表示不限轮次）、<code>q</code>（可选，按代理名、类型、状态、内容、任务标题等包含匹配）、<code>limit</code>（默认 10，最大 200）、<code>page</code>（默认 1）。</p>
+      <p><b>返回</b>：对象 <code>{items, total, page, limit}</code>。<code>items</code> 为结果数组。除表字段外，还会带上 <code>skill_name</code>、<code>task_title</code>、<code>round_name</code>（根据当前技能目录和任务表补上）。</p>
     </section>
     <section class="api">
       <h3><code>POST /results</code>：回写结果</h3>
-      <p><b>接收</b>：JSON，<code>agent_name</code>（必填）、<code>kind</code>（可选，默认 <code>test</code>）、<code>status</code>（<code>kind</code> 为 <code>test</code> 时必填，<code>pass</code> 或 <code>fail</code>；通用结果不要传）、<code>task_id</code> / <code>skill</code>（可选，<code>skill</code> 可写路径、文件名或技能名，见「技能」页）、<code>summary</code>、<code>log_text</code>。</p>
-      <p><b>返回</b>：新建的结果。如果填写的任务不存在，或技能在目录里找不到，返回 400。</p>
+      <p><b>接收</b>：JSON，<code>agent_name</code>（必填）、<code>kind</code>（可选，默认 <code>test</code>）、<code>status</code>（<code>kind</code> 为 <code>test</code> 时必填，<code>pass</code> 或 <code>fail</code>；通用结果不要传）、<code>task_id</code> / <code>skill</code>（可选，<code>skill</code> 可写路径、文件名或技能名，见「技能」页）、<code>round_id</code>（挂任务时可省，不挂任务时必填）、<code>summary</code>、<code>log_text</code>。</p>
+      <p><b>返回</b>：新建的结果。任务不存在、<code>round_id</code> 和任务对不上、该带轮次却没带，都返回 400；轮次已关闭返回 409；技能在目录里找不到返回 400。</p>
     </section>
     <section class="api">
       <h3><code>POST /results/{id}/recorded</code>：标记主 AI 是否已记录</h3>

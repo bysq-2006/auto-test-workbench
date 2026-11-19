@@ -4,16 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>多智能体测试工作台</title>
-  <link rel="stylesheet" href="/static/style.css?v=42">
+  <link rel="stylesheet" href="/static/style.css?v=48">
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
       <div class="brand">
-        <span class="logo" aria-hidden="true">
-          <i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i>
-        </span>
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.2" stroke-dasharray="44 8" transform="rotate(-52 12 12)"/>
+          <circle cx="12" cy="12" r="2.4" class="brand-dot"/>
+        </svg>
         <span class="brand-name">工作台</span>
+      </div>
+      <div class="round-picker" id="round-picker">
+        <button type="button" class="round-switch" id="round-switch" aria-haspopup="listbox" aria-expanded="false">
+          <span class="round-dot" id="round-dot"></span>
+          <span class="round-text">
+            <span class="round-name" id="round-name">未选择轮次</span>
+            <span class="round-meta" id="round-meta">还没有轮次</span>
+          </span>
+          <svg class="round-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="round-menu" id="round-menu" hidden>
+          <input class="round-search" id="round-search" type="search" autocomplete="off" placeholder="搜索轮次名或编号">
+          <div class="round-list" id="round-list" role="listbox" aria-label="轮次"></div>
+          <div class="round-actions" id="round-actions">
+            <button type="button" class="round-action" id="round-new">新建轮次</button>
+          </div>
+          <form class="round-form" id="round-form" hidden autocomplete="off">
+            <span class="round-form-title" id="round-form-title">新建轮次</span>
+            <input class="round-input" id="round-form-name" type="text" maxlength="40" placeholder="名字，如 崇州-26.11.18">
+            <input class="round-input" id="round-form-note" type="text" maxlength="200" placeholder="备注（可选）">
+            <p class="round-form-tip" id="round-form-tip" hidden></p>
+            <div class="round-form-actions">
+              <button type="submit" class="round-submit" id="round-form-ok">创建</button>
+              <button type="button" class="round-cancel" id="round-form-cancel">取消</button>
+            </div>
+          </form>
+          <div class="round-ops" id="round-ops" hidden role="menu"></div>
+        </div>
       </div>
       <nav id="nav">
         <a href="#/dashboard" data-page="dashboard">
@@ -58,6 +87,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/main.js?v=42"></script>
+  <script type="module" src="/static/js/main.js?v=48"></script>
 </body>
 </html>

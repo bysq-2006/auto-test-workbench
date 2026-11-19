@@ -6,6 +6,7 @@ export const DOCS = {
   testing: {
     label: "测试",
     items: [
+      { id: "rounds", label: "轮次" },
       { id: "skills", label: "技能" },
       { id: "tasks", label: "任务" },
       { id: "results", label: "结果" },
@@ -54,7 +55,7 @@ export function docsReady() {
 export function loadArticles() {
   if (!pending) {
     pending = Promise.all(ARTICLE_IDS.map(async (id) => {
-      const res = await fetch(`/static/docs/articles/${id}.html?v=41`);
+      const res = await fetch(`/static/docs/articles/${id}.html?v=43`);
       if (!res.ok) return;
       articles.set(id, await res.text());
     })).then(() => {

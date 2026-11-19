@@ -15,11 +15,26 @@ def _accept_skill(data):
     return data
 
 
+class RoundIn(BaseModel):
+    """开一轮。name 例：崇州-26.11.18。"""
+
+    name: str = Field(min_length=1)
+    note: str = ""
+
+
+class RoundCloseIn(BaseModel):
+    """关轮时必须写一句结论；还有任务没跑完要带 force。"""
+
+    note: str = Field(min_length=1)
+    force: bool = False
+
+
 class TaskIn(BaseModel):
     title: str = Field(min_length=1)
     description: str = ""
     skill: str | None = None
     payload: Any = None
+    round_id: int | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -44,6 +59,8 @@ class ResultIn(BaseModel):
     status: Literal["pass", "fail"] | None = None
     summary: str = ""
     log_text: str = ""
+    # 挂了 task_id 时可以不传，服务端从任务抄过来；两条都传且不一致返回 400
+    round_id: int | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -63,6 +80,7 @@ class ResultIn(BaseModel):
 class MessageIn(BaseModel):
     name: str = ""
     body: str = Field(min_length=1)
+    round_id: int | None = None
 
     @model_validator(mode="before")
     @classmethod

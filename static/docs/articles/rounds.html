@@ -1,0 +1,55 @@
+    <h1>轮次</h1>
+    <p>一轮就是一次测试委托：崇州一轮、德阳一轮、民政厅一轮。数据表 <code>rounds</code>。<code>tasks</code>、<code>test_results</code>、<code>messages</code> 各有一列 <code>round_id</code> 指过来，界面顶部按轮次切换。</p>
+    <p><b>技能和资源不分轮次。</b>技能是 <code>skills/</code> 目录现场扫出来的，资源是整台机器共用的浏览器池，两者都不挂 <code>round_id</code>，换轮次也不会变。</p>
+    <h2>字段</h2>
+    <table>
+      <thead><tr><th>真实名</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>主键，自增。就是提示词里说的「本轮编号」。</td></tr>
+        <tr><td><code>name</code></td><td>轮次名，例 <code>崇州-26.11.18</code>。最多 40 字，不能含 <code>\ / : * ? " &lt; &gt; |</code>，因为它要当目录名。</td></tr>
+        <tr><td><code>status</code></td><td><code>open</code>（进行中）或 <code>closed</code>（已归档）。关闭后只能看；关错了可以 <code>reopen</code> 启用回来。</td></tr>
+        <tr><td><code>note</code></td><td>本轮结论。关闭时必须写一句。</td></tr>
+        <tr><td><code>dir</code></td><td>本轮临时目录的绝对路径，创建时自动建好。</td></tr>
+        <tr><td><code>created_at</code></td><td>创建时间，UTC。</td></tr>
+        <tr><td><code>closed_at</code></td><td>关闭时间，UTC；没关时为空。</td></tr>
+      </tbody>
+    </table>
+    <p>列表返回值还会带上 <code>tasks</code>、<code>results</code>、<code>messages</code>（各挂了多少条）和 <code>alive_tasks</code>（还没跑完的任务数）。</p>
+    <h2>后端 API</h2>
+    <section class="api">
+      <h3><code>GET /rounds</code>：查看轮次</h3>
+      <p><b>接收</b>：无参数，按编号倒序，新的在前。</p>
+      <p><b>返回</b>：<code>{items, unassigned}</code>。<code>unassigned</code> 是三张表里 <code>round_id</code> 为空（未归类）的条数，全为 0 时界面不显示「未归类」这一项。</p>
+    </section>
+    <section class="api">
+      <h3><code>POST /rounds</code>：开一轮</h3>
+      <p><b>接收</b>：JSON，<code>name</code>（必填）、<code>note</code>（可选）。</p>
+      <p><b>返回</b>：新建的轮次。同时会在 <code>runs/</code> 下建好 <code>&lt;编号&gt;-&lt;名字&gt;/</code>，绝对路径写进 <code>dir</code>。名字为空、超长或含非法字符返回 400。</p>
+      <p>目录名由服务端拼，别自己建：名字规则改一次，自己拼的路径就对不上了。把这个 <code>dir</code> 写进从 AI 的提示词即可。</p>
+    </section>
+    <section class="api">
+      <h3><code>POST /rounds/{id}/close</code>：关轮</h3>
+      <p><b>接收</b>：JSON，<code>note</code>（必填，本轮结论）、<code>force</code>（可选，默认 <code>false</code>）。</p>
+      <p><b>返回</b>：更新后的轮次。还有 <code>pending</code> / <code>running</code> 的任务时返回 409，确认要关就带 <code>force=true</code>。</p>
+      <p>关闭后这一轮变成只读：新建任务、回写结果、发消息都返回 409，认领和改任务状态也拦。审核提案（<code>recorded</code>）不受限。</p>
+    </section>
+    <section class="api">
+      <h3><code>POST /rounds/{id}/reopen</code>：启用回来</h3>
+      <p><b>接收</b>：无参数。</p>
+      <p><b>返回</b>：更新后的轮次，<code>status</code> 回到 <code>open</code>，<code>closed_at</code> 清空。已经开着的轮返回 400。</p>
+      <p>关错了才用这个。结论（<code>note</code>）留着，下次关闭会被新写的覆盖；任务、结果、消息、<code>runs/</code> 目录都不动。</p>
+    </section>
+    <section class="api">
+      <h3><code>DELETE /rounds/{id}</code>：删轮</h3>
+      <p><b>返回</b>：<code>{id, deleted, dir}</code>。只能删一条数据都没挂的空轮；挂了任务、结果或消息返回 409，并报出各自条数。</p>
+      <p>有数据的轮只能关闭，不能删除——轮次编号会写进报告和 <code>runs/</code> 目录名，删掉就是悬空引用。删轮不删目录，要清自己清。</p>
+    </section>
+    <h2>界面</h2>
+    <p>左侧栏顶部切换轮次，仪表盘、任务、结果、消息默认只显示选中那一轮，通过率、待审提案、<code>[ISSUE]</code> 都跟着这一轮走；资源和技能不受影响。</p>
+    <p>选中值记在地址栏 <code>#/tasks?round=12</code> 里，同时存一份到浏览器本地：链接里带了就以链接为准，没带就用上次看的，都没有就落到最新一轮。想直接看未归类用 <code>?round=none</code>。</p>
+    <p>面板底部只有一个「新建轮次」。每一行右侧有个「⋯」，点开是这一轮自己的三个动作，规则和接口完全一样，人点界面、AI 调接口都行：</p>
+    <ul>
+      <li><b>启用</b>：只有已归档的轮能点，作用等于 <code>POST /rounds/{id}/reopen</code>。</li>
+      <li><b>关闭</b>：必须写一句本轮结论。还有没跑完的任务时先提示，再点一次才强制关闭。</li>
+      <li><b>删除</b>：只对空轮可点，挂了数据就置灰。删掉的是轮次记录，<code>runs/</code> 目录留着，要清自己清。</li>
+    </ul>

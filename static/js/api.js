@@ -1,7 +1,9 @@
 /** 请求后端接口。技能走文件扫描，结果、消息、任务和资源走数据库。 */
 
 import { LIST_PAGE_SIZE, state } from "./state.js";
-import { pageId } from "./router.js";
+import { pageId, roundParam } from "./router.js";
+
+const ROUND_KEY = "workbench.round";
 
 function errorFromResponse(url, res, data) {
   const detail = data && data.detail;
@@ -59,6 +61,46 @@ export function applyList(kind, data) {
   state[kind + "Total"] = Number(data.total || 0);
 }
 
+/** 发给后端的 round 值：编号、"none"（未归类）。没选轮次时也按未归类查。 */
+export function roundValue() {
+  return state.round && state.round.id != null ? String(state.round.id) : "none";
+}
+
+function looseTotal() {
+  const u = state.roundsUnassigned || {};
+  return Number(u.tasks || 0) + Number(u.results || 0) + Number(u.messages || 0);
+}
+
+function readStoredRound() {
+  try { return localStorage.getItem(ROUND_KEY) || ""; } catch (err) { return ""; }
+}
+
+/** 记住上一次看的是哪一轮；链接里带了 round 时以链接为准。 */
+export function storeRound(value) {
+  try { localStorage.setItem(ROUND_KEY, String(value ?? "")); } catch (err) { /* 隐私模式 */ }
+}
+
+function findRound(value) {
+  if (!value) return null;
+  if (value === "none") {
+    return looseTotal() ? { id: null, name: "未归类", status: "none" } : null;
+  }
+  const id = Number(value);
+  if (!Number.isFinite(id)) return null;
+  return state.rounds.find((item) => item.id === id) || null;
+}
+
+/** 优先级：链接里的 round > 上次看的 > 最新一轮。都没有就是空。 */
+function resolveRound() {
+  return findRound(roundParam()) || findRound(readStoredRound()) || state.rounds[0] || null;
+}
+
+function applyRounds(data) {
+  state.rounds = data.items || [];
+  state.roundsUnassigned = data.unassigned || { tasks: 0, results: 0, messages: 0 };
+  state.round = resolveRound();
+}
+
 const LIST_PATH = {
   skills: "/skills",
   tasks: "/tasks",
@@ -67,7 +109,7 @@ const LIST_PATH = {
   browsers: "/browsers",
 };
 
-/** 当前页才带上这一页的搜索和筛选；仪表盘预览不加。 */
+/** 当前页才带上这一页的搜索和筛选；仪表盘预览不加。任务、结果、消息都按轮次筛。 */
 export function listExtra(kind) {
   const extra = {};
   const q = (state.listQuery[kind] || "").trim();
@@ -79,6 +121,7 @@ export function listExtra(kind) {
     if (f.recorded) extra.recorded = f.recorded;
   }
   if (kind === "browsers" && f.status) extra.status = f.status;
+  if (kind === "tasks" || kind === "results" || kind === "messages") extra.round = roundValue();
   return extra;
 }
 
@@ -90,25 +133,37 @@ function listUrl(path, page, limit, extra = {}) {
   return `${path}?${params}`;
 }
 
+/** 只要轮次列表。说明页不打业务接口，但侧栏的轮次卡片得有内容。 */
+export async function refreshRounds() {
+  applyRounds(await getJSON("/rounds"));
+}
+
 /**
  * 并行拉状态和各列表。
- * 当前页带上自己的页码、搜索和筛选，轮询不会把列表打回第 1 页。
+ * 先拿轮次列表，确定这一屏看哪一轮，后面的列表和统计都按它筛。
  */
 export async function load() {
   const id = pageId();
+  applyRounds(await getJSON("/rounds"));
+
   const urlFor = (kind, previewLimit) => {
     if (id === kind) {
       return listUrl(LIST_PATH[kind], state.listPage[kind], LIST_PAGE_SIZE, listExtra(kind));
     }
-    return listUrl(LIST_PATH[kind], 1, previewLimit);
+    // 预览只要「最近几条」，不带本页的搜索和筛选；但轮次必须带，否则会混别的轮
+    const preview = (kind === "tasks" || kind === "results" || kind === "messages")
+      ? { round: roundValue() }
+      : {};
+    return listUrl(LIST_PATH[kind], 1, previewLimit, preview);
   };
+  const statusUrl = "/api/status?" + new URLSearchParams({ round: roundValue() });
   const skillUrl = urlFor("skills", 1);
   const taskUrl = urlFor("tasks", 8);
   const resultUrl = urlFor("results", 8);
   const msgUrl = urlFor("messages", 8);
   const browserUrl = urlFor("browsers", 1);
   const settled = await Promise.allSettled([
-    getJSON("/api/status"),
+    getJSON(statusUrl),
     getJSON(skillUrl),
     getJSON(taskUrl),
     getJSON(resultUrl),

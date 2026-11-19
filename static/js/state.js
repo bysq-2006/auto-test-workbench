@@ -2,6 +2,16 @@
 
 export const state = {
   status: { results: { pass: 0, fail: 0 } },
+  /** 轮次列表和当前选中的那一轮。选中值只是给界面筛数据用，AI 的归属不读它。 */
+  rounds: [],
+  roundsUnassigned: { tasks: 0, results: 0, messages: 0 },
+  round: null,
+  roundMenuOpen: false,
+  roundQuery: "",
+  /** 下拉里正在填的表单：null | { mode: "new" | "close", force: boolean, id: number|null } */
+  roundDialog: null,
+  /** 行内「…」弹窗开在哪一轮：null 或轮次编号 */
+  roundOps: null,
   tasks: [],
   tasksTotal: 0,
   skills: [],
